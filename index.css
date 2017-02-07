@@ -52,7 +52,7 @@ html, body {
 
 .catalog {
     width: 300px;
-    border: 1px solid #ccc;
+    border-right: 1px solid #ccc;
     padding: 15px;
     cursor: default;
     overflow: auto;

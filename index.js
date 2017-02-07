@@ -17,8 +17,8 @@ var catalog = (function(options){
     Vue.component('catalog', {
         props : ['tree'],
         template : '<div class="catalog">' +
-                        '<tree v-bind:tree="tree"></tree>' +
-                        '<node-mirror v-if="$root.currNodeMirror" v-bind:mirror="$root.currNodeMirror"></node-mirror>' +
+                        '<tree :tree="tree"></tree>' +
+                        '<node-mirror v-if="$root.currNodeMirror" :mirror="$root.currNodeMirror"></node-mirror>' +
                    '</div>',
         methods : {
             /*** 以下是公共方法 ***/
@@ -67,20 +67,20 @@ var catalog = (function(options){
             return { flag : false };
         },
         template : //transition-group列表过渡动画
-                   '<transition-group name="flip-list" tag="ul" v-if="isArray(tree) && tree.length > 0" :catalog-depth="getDepth(parentNode)" :catalog-size="tree.length" v-bind:class="getTreeClass(parentNode)">' +
-                        '<li v-bind:class="getNodeClass(node)" v-for="node in tree" v-bind:key="node">' +
+                   '<transition-group name="flip-list" tag="ul" v-if="isArray(tree) && tree.length > 0" :catalog-depth="getDepth(parentNode)" :catalog-size="tree.length" :class="getTreeClass(parentNode)">' +
+                        '<li :class="getNodeClass(node)" v-for="node in tree" :key="node">' +
 
                             //展开的图标按钮
-                            '<i v-bind:class="getIconClass(node)" v-bind:style="getIndentStyle(parentNode)" v-on:click.stop.prevent="toggleStatus(node)" aria-hidden="true"></i>' +
+                            '<i :class="getIconClass(node)" :style="getIndentStyle(parentNode)" @click.stop.prevent="toggleStatus(node)" aria-hidden="true"></i>' +
 
                             //节点内容
-                            '<span class="node-content" v-on:click.stop.prevent="activateNode(node)" v-on:dblclick="toggleStatus(node)" v-on:mousedown="mousedown($event, node)" v-on:mouseup="mouseup" v-on:mouseout="mouseout($event, node, parentNode)">' +
+                            '<span class="node-content" @click.stop.prevent="activateNode(node)" @dblclick="toggleStatus(node)" @mousedown="mousedown($event, node, tree)" @mouseup="mouseup" @mouseout="mouseout($event, node, parentNode)">' +
                                 '<span class="level">{{node.level}}</span>' +
                                 '<span class="title">{{node.title}}</span>' +
                             '</span>' +
 
                             //子节点树
-                            '<tree v-bind:tree="node.articles" v-bind:parent-node="node"></tree>' +
+                            '<tree :tree="node.articles" :parent-node="node"></tree>' +
                         '</li>' +
                    '</transition-group>',
         methods : {
@@ -169,10 +169,13 @@ var catalog = (function(options){
             },
 
             /*** 以下是节点事件handle ***/
-            mousedown : function(e, node){ //鼠标按下
+            mousedown : function(e, node, tree){ //鼠标按下
                 var self = this;
                 if(e.button == 0){ //鼠标左键
                     self.flag = true;
+                }else if(e.button == 2){ //鼠标右键
+                    document.querySelector(".catalog").oncontextmenu = function () {return false;}; //禁用右键菜单
+                    console.log("menu", node, tree);
                 }
             },
             mouseup : function(){ //鼠标抬起
@@ -220,7 +223,7 @@ var catalog = (function(options){
                 nodeHeight : document.querySelector(".node").clientHeight //节点高度
             }
         },
-        template : '<div v-bind:style="getMirrorStyle()" v-bind:class="getMirrorClass()">' +
+        template : '<div :style="getMirrorStyle()" :class="getMirrorClass()">' +
                         '<span class="level">{{mirror.node.level}}</span>' +
                         '<span class="title">{{mirror.node.title}}</span>' +
                    '</div>',
