@@ -115,9 +115,12 @@ var catalog = (function(options) {
                         '</li>' +
                    '</transition-group>',
         methods: {
-            /*** 以下是公共方法 ***/
-            getDepth: function(node) { //获取树节点深度
-                return ((node && node.level) || "").indexOf(".") > -1 ? node.level.split(".").length: node ? 1: 0 ;
+            /**
+            * 获取树节点深度
+            * @param node
+            */
+            getDepth: function(node) {
+                return ((node && node.level) || "").indexOf(".") > -1 ? node.level.split(".").length : node ? 1: 0 ;
             },
 
             /**
@@ -127,7 +130,7 @@ var catalog = (function(options) {
             getTreeClass: function(node) {
                 return {
                     tree: true,
-                    open: node ? node.open: true
+                    open: node ? node.open : true
                 }
             },
 
@@ -188,7 +191,7 @@ var catalog = (function(options) {
                 var self = this;
                 self.$root.currActiveNode = node;
                 window.location.hash = node.level;
-                typeof options.activeNode === 'function' ? options.activeNode(node): undefined;
+                self.isFuction(options.activeNode) ? options.activeNode(node): undefined;
             },
 
             /*** 以下是节点事件handle ***/
@@ -312,7 +315,7 @@ var catalog = (function(options) {
                             array.splice(array.indexOf(node), 0, self.mirror.node);
                         } else if (self.isArray(node.articles) && type === "inner") {
                             if (node.articles.length === 0) { //如果被放置节点的子节点数为 0
-                                Vue.set(node,"open",false);
+                                Vue.set(node,"open", false);
                             }
                             node.articles.push(self.mirror.node);
                         } else if (type === "after") {
@@ -327,7 +330,7 @@ var catalog = (function(options) {
 
                 var target = self.mirror.node.level; //节点目标位置
 
-                typeof options.swapNode === 'function' ? options.swapNode(origin, target): undefined;
+                self.isFuction(options.swapNode) ? options.swapNode(origin, target): undefined;
 
                 document.onmousemove = function() {};
                 document.onmouseup = function() {};
@@ -667,6 +670,11 @@ var catalog = (function(options) {
                     item.level = index ? index + "." + (i + 1): i + 1 + "";
                     self.refreshLevel(item.articles, item.level);
                 }
+            },
+
+            hideMenu: function() {
+                this.currMenu = null;
+                this.currSelectNode = null;
             }
         }
     });
@@ -685,18 +693,15 @@ window.onload = function() {
         },
         addNode: function() {
             console.log('添加');
-            vm.currMenu = null;
-            vm.currSelectNode = null;
+            vm.hideMenu();
         },
         updateNode: function() {
             console.log('修改');
-            vm.currMenu = null;
-            vm.currSelectNode = null;
+            vm.hideMenu();
         },
         deleteNode: function() {
             console.log('删除');
-            vm.currMenu = null;
-            vm.currSelectNode = null;
+            vm.hideMenu();
         }
     });
 
