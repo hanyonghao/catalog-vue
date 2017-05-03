@@ -2,59 +2,90 @@
  * Created by hanyonghao on 2016/11/26.
  */
 ;
+
+Vue.mixin({
+    methods: {
+        equal: function(obj, type) {
+            return obj instanceof type;
+        },
+        isEmpty: function(obj) {
+            return typeof obj === 'undefined';
+        },
+        isBoolean: function(obj) {
+            return typeof obj === 'boolean';
+        },
+        isFuction: function(obj) {
+            return typeof obj === 'function';
+        },
+        isNumber: function(obj) {
+            return typeof obj === 'number';
+        },
+        isObject: function(obj) {
+            return typeof obj === 'object';
+        },
+        isArray: function(obj) {
+            return this.equal(obj, Array);
+        }
+    }
+});
+
 /**
- * options : {
- *    activeNode : function(node),
- *    swapNode : function(origin,target),
- *    addNode : function(node),
- *    updateNode : function(node),
- *    deleteNode : function(node),
- *    setTreeDate : function(tree)
+ * options: {
+ *    activeNode: function(node),
+ *    swapNode: function(origin,target),
+ *    addNode: function(node),
+ *    updateNode: function(node),
+ *    deleteNode: function(node),
+ *    setTreeDate: function(tree)
  * }
  */
-var catalog = (function(options){
+var catalog = (function(options) {
 
     Vue.component('catalog', {
-        props : ['tree'],
-        template : '<div class="catalog">' +
+        props: ['tree'],
+        template: '<div class="catalog" @mousedown="mousedown">' +
                         '<tree :tree="tree"></tree>' +
                         '<node-mirror v-if="$root.currNodeMirror" :mirror="$root.currNodeMirror"></node-mirror>' +
+                        '<pop-menu v-if="$root.currMenu" :content="$root.currMenu"></pop-menu>' +
                    '</div>',
-        methods : {
-            /*** 以下是公共方法 ***/
-            isArray : function(obj){
-                return Array.isArray(obj);
-            },
-
+        methods: {
             /**
              * 初始化树数据
              * @param tree
              * @param parents
              */
-            treeInit : function(tree, parents){
+            treeInit: function(tree, parents) {
                 var self = this;
-                var hash = window.location.hash && window.location.hash.substring(1,window.location.hash.length) || "1"; //获取浏览器hash，默认节点 1
-                if(self.isArray(tree) && tree.length > 0){
-                    for(var i = 0 ; i < tree.length ; i++){
+                var hash = window.location.hash && window.location.hash.substring(1, window.location.hash.length) || "1"; //获取浏览器hash，默认节点 1
+                if (self.isArray(tree) && tree.length > 0) {
+                    for (var i = 0 ; i < tree.length ; i++) {
                         var array = self.isArray(parents) ? parents.concat() : []; //克隆父节点数组
-                        if(self.isArray(tree[i].articles) && tree[i].articles.length > 0){ //如果有子节点
-                            Vue.set(tree[i],"open",false); //设置默认收起
+                        if (self.isArray(tree[i].articles) && tree[i].articles.length > 0) { //如果有子节点
+                            Vue.set(tree[i],"open", false); //设置默认收起
                         }
-                        if(tree[i].level == hash){ //如果hash为当前节点
+                        if (tree[i].level === hash) { //如果hash为当前节点
                             self.$root.currActiveNode = tree[i]; //设置当前浏览节点
-                            for(var j = 0 ; j < array.length ; j++){ //展开所有父节点
+                            for (var j = 0 ; j < array.length ; j++) { //展开所有父节点
                                 array[j].open = true;
                             }
                         }
-                        Vue.set(tree[i],"preview","default"); //设置默认显示方式
+                        Vue.set(tree[i], "preview", "default"); //设置默认显示方式
                         array.push(tree[i]); //添加父节点
                         self.treeInit(tree[i].articles, array);
                     }
                     self.$root.currActiveNode = self.$root.currActiveNode || self.$root.treeData[0]; //如果hash没有对应的节点，则默认第一个节点
                 }
+            },
+
+            mousedown: function(e, tree) { //鼠标按下
+                var self = this;
+                if (e.button === 2) { //鼠标右键
+                    document.querySelector(".catalog").oncontextmenu = function () {return false;}; //禁用右键菜单
+                    self.$root.currMenu = self.$root.menuType.rootMenu;
+                }
             }
         },
-        created : function(){
+        created: function() {
             var self = this;
             self.treeInit(self.tree);
         }
@@ -62,19 +93,19 @@ var catalog = (function(options){
 
     /*** 目录树 ***/
     Vue.component('tree', {
-        props : ['tree','parentNode'],
-        data : function(){
-            return { flag : false };
+        props: ['tree','parentNode'],
+        data: function(){
+            return { flag: false };
         },
-        template : //transition-group列表过渡动画
+        template: //transition-group列表过渡动画
                    '<transition-group name="flip-list" tag="ul" v-if="isArray(tree) && tree.length > 0" :catalog-depth="getDepth(parentNode)" :catalog-size="tree.length" :class="getTreeClass(parentNode)">' +
-                        '<li :class="getNodeClass(node)" v-for="node in tree" :key="node">' +
+                        '<li :class="getNodeClass(node)" v-for ="node in tree" :key="node">' +
 
                             //展开的图标按钮
                             '<i :class="getIconClass(node)" :style="getIndentStyle(parentNode)" @click.stop.prevent="toggleStatus(node)" aria-hidden="true"></i>' +
 
                             //节点内容
-                            '<span class="node-content" @click.stop.prevent="activateNode(node)" @dblclick="toggleStatus(node)" @mousedown="mousedown($event, node, tree)" @mouseup="mouseup" @mouseout="mouseout($event, node, parentNode)">' +
+                            '<span class="node-content" @click.stop.prevent="activateNode(node)" @dblclick="toggleStatus(node)" @mousedown.stop.prevent="mousedown($event, node, tree)" @mouseup="mouseup" @mouseout="mouseout($event, node, parentNode)">' +
                                 '<span class="level">{{node.level}}</span>' +
                                 '<span class="title">{{node.title}}</span>' +
                             '</span>' +
@@ -83,29 +114,20 @@ var catalog = (function(options){
                             '<tree :tree="node.articles" :parent-node="node"></tree>' +
                         '</li>' +
                    '</transition-group>',
-        methods : {
+        methods: {
             /*** 以下是公共方法 ***/
-            isArray : function(obj){
-                return Array.isArray(obj);
-            },
-            isEmpty : function(obj){
-                return typeof obj == 'undefined';
-            },
-            isBoolean : function(obj){
-                return typeof obj == 'boolean';
-            },
-            getDepth : function(node){ //获取树节点深度
-                return ((node && node.level) || "").indexOf(".") > -1 ? node.level.split(".").length : node ? 1 : 0 ;
+            getDepth: function(node) { //获取树节点深度
+                return ((node && node.level) || "").indexOf(".") > -1 ? node.level.split(".").length: node ? 1: 0 ;
             },
 
             /**
              * 获取树的class
              * @param node
              */
-            getTreeClass : function(node){
+            getTreeClass: function(node) {
                 return {
-                    tree : true,
-                    open : node ? node.open : true
+                    tree: true,
+                    open: node ? node.open: true
                 }
             },
 
@@ -113,11 +135,12 @@ var catalog = (function(options){
              * 获取节点class
              * @param node
              */
-            getNodeClass : function(node){
+            getNodeClass: function(node) {
                 var self = this;
                 var clazz = {
-                    node : true,
-                    active : node == self.$root.currActiveNode
+                    node: true,
+                    active: node === self.$root.currActiveNode,
+                    select: node === self.$root.currSelectNode
                 };
                 clazz[node.preview] = true;
                 return clazz;
@@ -127,12 +150,12 @@ var catalog = (function(options){
              * 获取左图标class
              * @param node
              */
-            getIconClass : function(node){
+            getIconClass: function(node) {
                 var self = this;
                 return {
                     "fa": true,
-                    "fa-caret-right" : self.isEmpty(node.open) ? false : !node.open,
-                    "fa-caret-down" : self.isEmpty(node.open) ? false : !!node.open
+                    "fa-caret-right": self.isEmpty(node.open) ? false: !node.open,
+                    "fa-caret-down": self.isEmpty(node.open) ? false: !!node.open
                 }
             },
 
@@ -140,19 +163,19 @@ var catalog = (function(options){
              * 获取缩进长度样式
              * @param node
              */
-            getIndentStyle : function(node){
+            getIndentStyle: function(node) {
                 var self = this;
                 var depth = self.getDepth(node);
-                return { "margin-left" : 2 + depth * 14 + "px" }
+                return { "margin-left": 2 + depth * 14 + "px" }
             },
 
             /**
              * 切换收起/展开
              * @param node
              */
-            toggleStatus : function(node){
+            toggleStatus: function(node) {
                 var self = this;
-                if(self.isBoolean(node.open)){
+                if (self.isBoolean(node.open)) {
                     node.open = !node.open;
                 }
             },
@@ -161,38 +184,39 @@ var catalog = (function(options){
              * 激活当选中节点
              * @param node
              */
-            activateNode : function(node){
+            activateNode: function(node) {
                 var self = this;
                 self.$root.currActiveNode = node;
                 window.location.hash = node.level;
-                typeof options.activeNode == 'function' ? options.activeNode(node) : undefined;
+                typeof options.activeNode === 'function' ? options.activeNode(node): undefined;
             },
 
             /*** 以下是节点事件handle ***/
-            mousedown : function(e, node, tree){ //鼠标按下
+            mousedown: function(e, node, tree) { //鼠标按下
                 var self = this;
-                if(e.button == 0){ //鼠标左键
+                if (e.button === 0) { //鼠标左键
                     self.flag = true;
-                }else if(e.button == 2){ //鼠标右键
+                } else if (e.button === 2) { //鼠标右键
                     document.querySelector(".catalog").oncontextmenu = function () {return false;}; //禁用右键菜单
-                    console.log("menu", node, tree);
+                    self.$root.currMenu = self.$root.menuType.nodeMenu;
+                    self.$root.currSelectNode = node;
                 }
             },
-            mouseup : function(){ //鼠标抬起
+            mouseup: function() { //鼠标抬起
                 var self = this;
                 self.flag = false;
             },
-            mouseout : function(e, node, parentNode){ //鼠标移出
+            mouseout: function(e, node, parentNode) { //鼠标移出
                 var self = this;
-                if(self.flag){
+                if (self.flag) {
 
                     self.$root.currNodeMirror = { //设置当前拖拽节点
-                        node : node,
-                        parentNode : parentNode
+                        node: node,
+                        parentNode: parentNode
                     };
 
-                    document.onselectstart = function(){ //禁止拖拽时选中
-                        if(self.$root.currNodeMirror){
+                    document.onselectstart = function() { //禁止拖拽时选中
+                        if (self.$root.currNodeMirror) {
                             return false;
                         }
                     };
@@ -202,53 +226,45 @@ var catalog = (function(options){
         }
     });
 
-    Vue.component('nodeMirror', {
-        props : ['mirror'],
-        data : function(){
+    Vue.component('node-mirror', {
+        props: ['mirror'],
+        data: function() {
             return {
-                catalog : { //目录相对位置
-                    width : document.querySelector(".catalog").clientWidth,
-                    offsetTop : 15,
-                    offsetLeft : 15
+                catalog: { //目录相对位置
+                    width: document.querySelector(".catalog").clientWidth,
+                    offsetTop: 15,
+                    offsetLeft: 15
                 },
-                mousePosition : { //鼠标位置
-                    top : 0,
-                    left : 0
+                mousePosition: { //鼠标位置
+                    top: 0,
+                    left: 0
                 },
-                nodeArray : [], //当前节点位置排序
-                isAllow : true, //是否允许交换
-                isOverflow : false, //是否超出目录范围
-                swapNode : null, //被交换节点
-                swapOffset : 5, //节点偏移
-                nodeHeight : document.querySelector(".node").clientHeight //节点高度
+                nodeArray: [], //当前节点位置排序
+                isAllow: true, //是否允许交换
+                isOverflow: false, //是否超出目录范围
+                swapNode: null, //被交换节点
+                swapOffset: 5, //节点偏移
+                nodeHeight: document.querySelector(".node").clientHeight //节点高度
             }
         },
-        template : '<div :style="getMirrorStyle()" :class="getMirrorClass()">' +
+        template: '<div :style="getMirrorStyle()" :class="getMirrorClass()">' +
                         '<span class="level">{{mirror.node.level}}</span>' +
                         '<span class="title">{{mirror.node.title}}</span>' +
                    '</div>',
-        methods : {
-            /*** 以下是公共方法 ***/
-            isArray : function(obj){
-                return Array.isArray(obj);
-            },
-            isBoolean : function(obj){
-                return typeof obj == 'boolean';
-            },
-
+        methods: {
             /**
              * 设置
              * @param array
              */
-            setNodeArray : function(array){
+            setNodeArray: function(array) {
                 var self = this;
-                if(self.isArray(array) && array.length > 0){
-                    for(var i = 0 ; i < array.length ; i++){
+                if (self.isArray(array) && array.length > 0) {
+                    for (var i = 0 ; i < array.length ; i++) {
                         self.nodeArray.push({
-                            node : array[i],
-                            array : array
+                            node: array[i],
+                            array: array
                         });
-                        if(self.isBoolean(array[i].open) && array[i].open){ //如果节点处于展开状态则遍历它的子节点
+                        if (self.isBoolean(array[i].open) && array[i].open) { //如果节点处于展开状态则遍历它的子节点
                             self.setNodeArray(array[i].articles);
                         }
                     }
@@ -259,7 +275,7 @@ var catalog = (function(options){
              * 拖拽镜像节点时
              * @param e
              */
-            moveMirror : function(e){
+            moveMirror: function(e) {
                 var self = this;
                 e = e || window.event;
                 self.mousePosition.top = e.clientY;
@@ -270,36 +286,36 @@ var catalog = (function(options){
              * 取消镜像节点时
              * @param e
              */
-            cancelMirror : function(e){
+            cancelMirror: function(e) {
                 var self = this;
 
                 var origin = self.mirror.node.level; //节点原位置
 
-                if(self.isAllow && !self.isOverflow && self.swapNode){ //如果合法，则交换
+                if (self.isAllow && !self.isOverflow && self.swapNode) { //如果合法，则交换
 
-                    if(self.mirror.parentNode && self.isArray(self.mirror.parentNode.articles)){ //如果有父节点
+                    if (self.mirror.parentNode && self.isArray(self.mirror.parentNode.articles)) { //如果有父节点
                         self.mirror.parentNode.articles.splice(self.mirror.parentNode.articles.indexOf(self.mirror.node),1); //移除原节点
-                        if(self.mirror.parentNode.articles.length == 0){ //如果子节点已经全部移除，则清除展开状态
+                        if (self.mirror.parentNode.articles.length === 0) { //如果子节点已经全部移除，则清除展开状态
                             Vue.delete(self.mirror.parentNode, "open")
                         }
-                    }else{ //如果没有父节点则从树根节点删除
+                    } else { //如果没有父节点则从树根节点删除
                         self.$root.treeData.splice(self.$root.treeData.indexOf(self.mirror.node),1); //移除原节点
                     }
 
-                    if(self.swapNode){ //如果有交换的节点
+                    if (self.swapNode) { //如果有交换的节点
 
                         var node = self.swapNode.content.node; //交换的节点
                         var array = self.swapNode.content.array; //所在数组
                         var type = self.swapNode.swapType; //交换类型
 
-                        if(self.isArray(array) && type == "before"){
+                        if (self.isArray(array) && type === "before") {
                             array.splice(array.indexOf(node), 0, self.mirror.node);
-                        }else if(self.isArray(node.articles) && type == "inner"){
-                            if(node.articles.length == 0){ //如果被放置节点的子节点数为 0
+                        } else if (self.isArray(node.articles) && type === "inner") {
+                            if (node.articles.length === 0) { //如果被放置节点的子节点数为 0
                                 Vue.set(node,"open",false);
                             }
                             node.articles.push(self.mirror.node);
-                        }else if(type == "after"){
+                        } else if (type === "after") {
                             self.$root.treeData.push(self.mirror.node);
                         }
 
@@ -311,17 +327,17 @@ var catalog = (function(options){
 
                 var target = self.mirror.node.level; //节点目标位置
 
-                typeof options.swapNode == 'function' ? options.swapNode(origin, target) : undefined;
+                typeof options.swapNode === 'function' ? options.swapNode(origin, target): undefined;
 
-                document.onmousemove = function(){};
-                document.onmouseup = function(){};
-                if(self.swapNode){self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
+                document.onmousemove = function() {};
+                document.onmouseup = function() {};
+                if (self.swapNode) {self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
                 self.$root.currNodeMirror = null;
                 self.swapNode = null;
             },
 
             /*** 获取样式方法 ***/
-            getMirrorStyle : function(){
+            getMirrorStyle: function() {
                 var self = this;
                 return {
                     top: self.mousePosition.top + 'px',
@@ -330,17 +346,17 @@ var catalog = (function(options){
             },
 
             /*** 获取class方法 ***/
-            getMirrorClass : function(){
+            getMirrorClass: function() {
                 var self = this;
                 return {
-                    "node-mirror" : true,
-                    "right" : self.isAllow && !self.isOverflow,
-                    "error" : !self.isAllow && !self.isOverflow
+                    "node-mirror": true,
+                    "right": self.isAllow && !self.isOverflow,
+                    "error": !self.isAllow && !self.isOverflow
                 }
             },
 
             /*** 节点定位初始化 ***/
-            nodesPositionInit : function(){
+            nodesPositionInit: function() {
                 var self = this;
                 var tree = self.$root.treeData;
                 self.setNodeArray(tree);
@@ -352,28 +368,28 @@ var catalog = (function(options){
              * @param node 是否包含该节点
              * @returns {boolean}
              */
-            isCorrect : function(array, node){
+            isCorrect: function(array, node) {
                 var self = this;
-                if(self.isArray(array) && array.indexOf(node) == -1){
+                if (self.isArray(array) && array.indexOf(node) === -1) {
                     var result = true;
-                    for(var i = 0; i < array.length ; i++){
-                        if(self.isArray(array[i].articles) && array[i].articles.length > 0){
+                    for (var i = 0; i < array.length ; i++) {
+                        if (self.isArray(array[i].articles) && array[i].articles.length > 0) {
                             result = self.isCorrect(array[i].articles, node);
-                            if(!result){
+                            if (!result) {
                                 return result;
                             }
                         }
                     }
                     return result;
-                }else{
-                    if(self.swapNode){self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
+                } else {
+                    if (self.swapNode) {self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
                     self.swapNode = null;
                     return false;
                 }
             }
         },
-        watch : {
-            "mousePosition.top" : function(top){
+        watch: {
+            "mousePosition.top": function(top) {
                 var self = this;
                 var scrollTop = document.querySelector(".catalog").scrollTop; //滚动距离
                 var nodeArray = self.nodeArray; //当前节点位置排序
@@ -382,43 +398,43 @@ var catalog = (function(options){
                 var nodeOffset = offsetTop % self.nodeHeight; //节点偏移
                 var index = parseInt(offsetTop / self.nodeHeight);
 
-                if(offsetTop <= 0){ //如果低于最小高度则算最前一个的开端
+                if (offsetTop <= 0) { //如果低于最小高度则算最前一个的开端
                     index = 0; //最小索引
                     nodeOffset = 0; //最始偏移
-                }else if(offsetTop >= maxOffsetTop){ //如果超过最大高度则算最后一个的末端
+                } else if (offsetTop >= maxOffsetTop) { //如果超过最大高度则算最后一个的末端
                     index = nodeArray.length - 1; //最大索引
                     nodeOffset = self.nodeHeight -1; //最末偏移
                 }
 
                 var swapNode = nodeArray[index]; //要交换的节点
 
-                var swapType = offsetTop >= maxOffsetTop ? "after" : nodeOffset > self.nodeHeight / 3 ? "inner" : "before"; //如果位置在最末端则放后面，不超过三分之一则放前面，超过则放里面
+                var swapType = offsetTop >= maxOffsetTop ? "after": nodeOffset > self.nodeHeight / 3 ? "inner": "before"; //如果位置在最末端则放后面，不超过三分之一则放前面，超过则放里面
 
-                if(self.swapNode){self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
+                if (self.swapNode) {self.swapNode.content.node.preview = "default";} //清除上一个标记的节点
 
-                if(!self.isOverflow && swapNode.node != self.mirror.node && self.isCorrect(self.mirror.node.articles, swapNode.node)){ //是否合法
+                if (!self.isOverflow && swapNode.node != self.mirror.node && self.isCorrect(self.mirror.node.articles, swapNode.node)) { //是否合法
 
                     self.isAllow = true; //允许交换
 
                     swapNode.node.preview = swapType; //交换类型
 
                     self.swapNode = {
-                        content : swapNode,
-                        swapType : swapType
+                        content: swapNode,
+                        swapType: swapType
                     };
 
-                }else{
+                } else {
                     self.isAllow = false;
                     self.swapNode = null;
                 }
 
             },
-            "mousePosition.left" : function(left){
+            "mousePosition.left": function(left) {
                 var self = this;
                 self.isOverflow = left > self.catalog.width; //如果超出目录范围
             }
         },
-        created : function(){
+        created: function() {
             var self = this;
             document.onmousemove = self.moveMirror;
             document.onmouseup = self.cancelMirror;
@@ -426,12 +442,44 @@ var catalog = (function(options){
         }
     });
 
+    Vue.component('pop-menu',{
+        props: ['content'],
+        template: '<div class="menu-container" @click="hide">' +
+                        '<div class="menu-content" :style="positionStyle()">' +
+                            '<div class="menu-item" v-for="item in content" @click.stop="item.handler">' +
+                                '<i :class="iconClass(item)" style="margin-right: 10px;"></i>{{item.name}}' +
+                            '</div>' +
+                        '</div>' +
+                   '</div>',
+        methods: {
+            positionStyle: function() { //右键菜单定位
+                var e = window.event;
+                return {
+                    top : e.clientY + 'px',
+                    left : e.clientX + 'px'
+                };
+            },
+            iconClass: function(item) {
+                var clazz = { fa: true };
+                clazz[item.icon] = true;
+                return clazz;
+            },
+            hide: function() {
+                this.$root.currMenu = null;
+                this.$root.currSelectNode = null;
+            }
+        }
+    });
+
+
     var vm = window.vm = new Vue({
-        el : '#container',
-        data : {
-            currActiveNode : null, //当前显示的节点
-            currNodeMirror : null, //当前拖拽的节点
-            treeData : [
+        el: '#app',
+        data: {
+            currActiveNode: null, //当前显示的节点
+            currNodeMirror: null, //当前拖拽的节点
+            currSelectNode: null, //当前选中的节点
+            currMenu: null, //当前右键菜单
+            treeData: [
                             {
                                 "level": "1",
                                 "title": "前言",
@@ -578,19 +626,45 @@ var catalog = (function(options){
                                 "ref": "ce_shi_6.md",
                                 "articles": []
                             }
-                        ] //目录树数据
+                        ], //目录树数据
+            menuType: {
+                rootMenu: [
+                    {
+                        name: '添加章节',
+                        icon: 'fa-plus',
+                        handler: options.addNode
+                    }
+                ],
+                nodeMenu: [
+                    {
+                        name: '添加节点',
+                        icon: 'fa-plus',
+                        handler: options.addNode
+                    },
+                    {
+                        name: '修改节点',
+                        icon: 'fa-pencil',
+                        handler: options.updateNode
+                    },
+                    {
+                        name: '删除节点',
+                        icon: 'fa-minus',
+                        handler: options.deleteNode
+                    }
+                ]
+            }
         },
-        methods : {
+        methods: {
             /**
              * 刷新节点编号
              * @param array 节点数组
              * @param index 节点编号前缀
              */
-            refreshLevel : function(array, index){
+            refreshLevel: function(array, index) {
                 var self = this;
-                for(var i = 0; Array.isArray(array) && i < array.length ; i++){
+                for (var i = 0; Array.isArray(array) && i < array.length ; i++) {
                     var item = array[i];
-                    item.level = index ? index + "." + (i + 1) : i + 1 + "";
+                    item.level = index ? index + "." + (i + 1): i + 1 + "";
                     self.refreshLevel(item.articles, item.level);
                 }
             }
@@ -600,14 +674,29 @@ var catalog = (function(options){
     return vm;
 });
 
-window.onload = function(){
+window.onload = function() {
 
     var vm = catalog({
-        activeNode : function(node){
+        activeNode: function(node) {
             console.log(node.level, node.title);
         },
-        swapNode : function(origin, target){
+        swapNode: function(origin, target) {
             console.log(origin, target);
+        },
+        addNode: function() {
+            console.log('添加');
+            vm.currMenu = null;
+            vm.currSelectNode = null;
+        },
+        updateNode: function() {
+            console.log('修改');
+            vm.currMenu = null;
+            vm.currSelectNode = null;
+        },
+        deleteNode: function() {
+            console.log('删除');
+            vm.currMenu = null;
+            vm.currSelectNode = null;
         }
     });
 
